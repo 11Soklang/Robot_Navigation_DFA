@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AutoNav-FA Controller</title>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#031427",
+                        surface: "#031427",
+                        "surface-container": "#102034",
+                        "surface-container-low": "#0b1c30",
+                        "surface-container-high": "#1b2b3f",
+                        "surface-container-highest": "#26364a",
+                        "surface-container-lowest": "#000f21",
+                        "on-background": "#d3e4fe",
+                        "on-surface": "#d3e4fe",
+                        "on-surface-variant": "#c2c6d6",
+                        primary: "#adc6ff",
+                        "primary-container": "#4d8eff",
+                        "on-primary": "#002e6a",
+                        secondary: "#4edea3",
+                        "on-secondary": "#003824",
+                        error: "#ffb4ab",
+                        "error-container": "#93000a",
+                        "on-error-container": "#ffdad6",
+                        outline: "#8c909f",
+                        "outline-variant": "#424754"
+                    }
+                }
+            }
+        };
+    </script>
+
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="font-body-md bg-background text-on-background min-h-screen flex flex-col">
+
+    <header class="bg-slate-900 flex justify-between items-center px-6 h-14 w-full border-b border-slate-700">
+        <div class="flex items-center gap-6">
+            <span class="text-lg font-bold tracking-widest text-slate-100 uppercase">AutoNav-FA Controller</span>
+            <nav class="hidden md:flex items-center gap-6">
+                <a class="text-blue-500 border-b-2 border-blue-500 pb-1" href="#">Dashboard</a>
+                <a class="text-slate-400" href="#">Telemetry</a>
+                <a class="text-slate-400" href="#">Logs</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-secondary">battery_charging_80</span>
+            <span class="material-symbols-outlined text-primary">wifi</span>
+            <span class="material-symbols-outlined text-slate-400">settings</span>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+
+        <aside class="bg-slate-800 flex flex-col h-screen py-4 fixed left-0 w-64 border-r border-slate-700 z-10">
+            <div class="px-6 mb-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded bg-slate-700 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-blue-500">smart_toy</span>
+                    </div>
+                    <div>
+                        <h3 class="text-blue-500 font-bold">Unit_01</h3>
+                        <p class="text-[10px] text-secondary lowercase">Status: Online</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-1 text-xs font-bold uppercase">
+                <a class="flex items-center gap-3 px-3 py-2 bg-slate-700 text-blue-400 border-l-4 border-blue-500"
+                    href="#">
+                    <span class="material-symbols-outlined">grid_view</span> Simulator
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 text-slate-400" href="#">
+                    <span class="material-symbols-outlined">reorder</span> Sequencer
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 text-slate-400" href="#">
+                    <span class="material-symbols-outlined">account_tree</span> Logic Map
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 text-slate-400" href="#">
+                    <span class="material-symbols-outlined">terminal</span> Logs
+                </a>
+            </nav>
+
+            <div class="px-4">
+                <button onclick="emergencyStop()"
+                    class="w-full py-3 bg-error-container text-on-error-container font-bold rounded-lg border border-red-900">
+                    EMERGENCY STOP
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 ml-64 flex flex-col p-4 gap-4 bg-surface overflow-y-auto">
+
+            <div class="flex flex-col lg:flex-row gap-4 h-full">
+
+                <section
+                    class="flex-[2] flex flex-col bg-surface-container rounded-lg border border-outline-variant overflow-hidden">
+                    <div
+                        class="px-4 py-2 border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+                        <span class="text-xs font-bold text-on-surface-variant uppercase">8×8 Grid Simulation</span>
+                        <span class="text-xs font-mono text-secondary">ACTIVE_NAV</span>
+                    </div>
+
+                    <div class="flex-1 relative p-2 min-h-[520px]">
+                        <div id="grid"
+                            class="relative w-full h-full grid grid-cols-8 grid-rows-8 gap-0 border border-slate-700">
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="w-full lg:w-80 flex flex-col gap-4">
+
+                    <section class="bg-surface-container rounded-lg border border-outline-variant">
+                        <div class="px-4 py-2 border-b border-outline-variant bg-surface-container-high">
+                            <span class="text-xs font-bold text-on-surface-variant uppercase">Robot Status</span>
+                        </div>
+
+                        <div class="p-4 space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-on-surface-variant">State</span>
+                                <span id="state" class="font-mono text-secondary">Idle</span>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-on-surface-variant">Energy</span>
+                                    <span id="energyText" class="font-mono text-primary">3/3</span>
+                                </div>
+                                <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="energyBar" class="h-full bg-primary" style="width:100%"></div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="p-2 bg-surface-container-low border border-outline-variant rounded">
+                                    <p class="text-[10px] text-on-surface-variant uppercase">Position</p>
+                                    <p id="position" class="font-mono text-primary">(0,0)</p>
+                                </div>
+                                <div class="p-2 bg-surface-container-low border border-outline-variant rounded">
+                                    <p class="text-[10px] text-on-surface-variant uppercase">Direction</p>
+                                    <p id="direction" class="font-mono text-primary">North</p>
+                                </div>
+                                <div
+                                    class="p-2 bg-surface-container-low border border-outline-variant rounded col-span-2">
+                                    <p class="text-[10px] text-on-surface-variant uppercase">Carrying Object</p>
+                                    <p id="carrying" class="font-mono text-primary">No</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="bg-surface-container rounded-lg border border-outline-variant">
+                        <div class="px-4 py-2 border-b border-outline-variant bg-surface-container-high">
+                            <span class="text-xs font-bold text-on-surface-variant uppercase">Command Center</span>
+                        </div>
+
+                        <div class="p-4">
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="addCommand('START')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-secondary">play_arrow</span><span>START</span></button>
+                                <button onclick="addCommand('STOP')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-error">stop</span><span>STOP</span></button>
+                                <button onclick="addCommand('FORWARD')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">keyboard_double_arrow_up</span><span>FORWARD</span></button>
+                                <button onclick="addCommand('LEFT')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">keyboard_double_arrow_left</span><span>LEFT</span></button>
+                                <button onclick="addCommand('RIGHT')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">keyboard_double_arrow_right</span><span>RIGHT</span></button>
+                                <button onclick="addCommand('BACKWARD')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">keyboard_double_arrow_down</span><span>BACKWARD</span></button>
+                                <button onclick="addCommand('PICK')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">pan_tool</span><span>PICK</span></button>
+                                <button onclick="addCommand('DROP')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-primary">back_hand</span><span>DROP</span></button>
+                                <button onclick="addCommand('RECHARGE')" class="cmd-btn"><span
+                                        class="material-symbols-outlined text-secondary">ev_station</span><span>RECHARGE</span></button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="runCommands()"
+                            class="py-4 bg-secondary text-on-secondary font-bold rounded-lg">RUN</button>
+                        <button onclick="clearCommands()"
+                            class="py-4 border-2 border-outline text-outline font-bold rounded-lg">CLEAR</button>
+                    </div>
+
+                </aside>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-4">
+
+                <section class="flex-1 bg-surface-container rounded-lg border border-outline-variant">
+                    <div
+                        class="px-4 py-2 border-b border-outline-variant bg-surface-container-high flex justify-between">
+                        <span class="text-xs font-bold text-on-surface-variant uppercase">Instruction Queue</span>
+                        <span id="stepCount" class="text-[10px] text-primary">0 STEPS LOADED</span>
+                    </div>
+                    <div id="commandQueue" class="p-4 flex items-center gap-3 overflow-x-auto text-xs font-mono">
+                        No commands yet
+                    </div>
+                </section>
+
+                <section class="flex-1 bg-surface-container-lowest rounded-lg border border-outline-variant max-h-48">
+                    <div class="px-4 py-2 border-b border-outline-variant bg-slate-900/50 flex justify-between">
+                        <span class="text-[10px] font-mono text-on-surface-variant">TERMINAL: VALIDATION_LOGS</span>
+                        <span class="material-symbols-outlined text-sm">terminal</span>
+                    </div>
+                    <div id="logs" class="p-4 font-mono text-[12px] space-y-1 overflow-y-auto max-h-36">
+                        <p class="text-secondary">> System ready.</p>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
