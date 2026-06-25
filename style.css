@@ -1,5 +1,5 @@
 body {
-    background-color: #031427;
+    background: radial-gradient(circle at top, #11233d 0%, #031427 55%);
     color: #d3e4fe;
     font-family: "Inter", sans-serif;
 }
@@ -9,23 +9,52 @@ body {
     vertical-align: middle;
 }
 
+/* .glass-panel {
+    background: rgba(11, 28, 48, 0.86);
+    backdrop-filter: blur(10px);
+} */
+
+.status-pill {
+    border: 1px solid rgba(78, 222, 163, 0.45);
+    color: #4edea3;
+    background: rgba(78, 222, 163, 0.09);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
+
+.shadow-soft {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.22);
+}
+
+.grid-wrap {
+    height: clamp(480px, 60vh, 760px);
+}
+
+.grid-size {
+    width: 100%;
+    height: 100%;
+}
+
 .cmd-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
-    padding: 10px;
-    background: #0b1c30;
+    padding: 11px;
+    background: #102034;
     border: 1px solid #424754;
-    border-radius: 6px;
-    font-size: 9px;
+    border-radius: 10px;
+    font-size: 10px;
     font-weight: 700;
     transition: 0.2s;
 }
 
 .cmd-btn:hover {
     background: #26364a;
+    border-color: #6c7387;
 }
 
 button {
@@ -37,7 +66,7 @@ button:active {
 }
 
 .grid-cell {
-    background: #0b1c30;
+    background: #0c1f34;
     border: 1px solid #26364a;
     display: flex;
     align-items: center;
@@ -48,24 +77,81 @@ button:active {
 }
 
 .robot-icon {
-    width: 38px;
-    height: 38px;
-    background: #adc6ff;
-    color: #002e6a;
-    border-radius: 8px;
+    width: 58px;
+    height: 58px;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    font-weight: bold;
-    box-shadow: 0 0 15px rgba(173, 198, 255, 0.5);
+    filter: drop-shadow(0 0 8px rgba(173, 198, 255, 0.55));
+}
+
+.robot-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: transparent;
+    image-rendering: auto;
+}
+
+.face-dot {
+    position: absolute;
+    z-index: 5;
+    font-size: 22px;
+    line-height: 1;
+    color: #4d8eff;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(77, 142, 255, 0.35);
+    pointer-events: none;
+}
+
+.face-north {
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.face-south {
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.face-west {
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.face-east {
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.carried-object {
+    position: absolute;
+    right: -9px;
+    top: -9px;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: rgba(3, 20, 39, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 2px;
+}
+
+.object-icon {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(0 0 5px rgba(255, 165, 0, 0.5));
 }
 
 .command-chip {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #0b1c30;
+    background: #102034;
     border: 1px solid rgba(173, 198, 255, 0.3);
     color: #d8e2ff;
     padding: 8px 12px;
@@ -75,4 +161,15 @@ button:active {
 
 .arrow {
     color: #8c909f;
+}
+
+@media (max-width: 1024px) {
+    .grid-wrap {
+        height: min(78vw, 620px);
+    }
+
+    .grid-size {
+        width: 80%;
+        height: 80%;
+    }
 }

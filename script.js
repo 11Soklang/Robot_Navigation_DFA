@@ -1,4 +1,5 @@
 let commands = [];
+let simulationInterval = null; //added
 
 const SIMULATION_DELAY = 1200;
 
@@ -11,7 +12,6 @@ let robot = {
     state: "Idle"
 };
 
-// Convert UI command names to Pu Sok's command format
 function convertToValidatorFormat(command) {
     const map = {
         START: "START",
@@ -28,7 +28,6 @@ function convertToValidatorFormat(command) {
     return map[command];
 }
 
-// Prepare command list for Pu Sok's validator
 function getValidatorCommands() {
     return commands.map(convertToValidatorFormat);
 }
@@ -41,7 +40,7 @@ function validateCommands(cmds) {
     let turnCount = 0;
     let energy = 3;
 
-    let lastMove = null;
+    let previousCommand = null;
     let loopStage = 0;
     let loopDone = false;
 
@@ -57,9 +56,11 @@ function validateCommands(cmds) {
         }
 
         if (cmd === "STOP") {
+            if (i !== cmds.length - 1) return { valid: false, message: "Commands are not allowed after STOP" };
             if (!moved) return { valid: false, message: "No movement" };
             if (!taskDone) return { valid: false, message: "No pick-drop task completed" };
-            if (holding) return { valid: false, message: "Robot is still holding object" };
+            // if (holding) return { valid: false, message: "Robot is still holding object" };
+            if (holding && !taskDone) return { valid: false, message: "Robot is still holding object" };
             if (!loopDone) return { valid: false, message: "Loop (F L) ×4 not completed" };
 
             return { valid: true, message: "Valid command sequence" };
@@ -70,18 +71,19 @@ function validateCommands(cmds) {
                 return { valid: false, message: `No energy at command ${i + 1}` };
             }
 
-            if (lastMove === "F" && cmd === "B") {
-                return { valid: false, message: "Cannot move Backward immediately after Forward" };
-            }
-
-            if (lastMove === "B" && cmd === "F") {
-                return { valid: false, message: "Cannot move Forward immediately after Backward" };
+            if (
+                (previousCommand === "F" && cmd === "B") ||
+                (previousCommand === "B" && cmd === "F")
+            ) {
+                return {
+                    valid: false,
+                    message: "Immediate reverse movement is not allowed"
+                };
             }
 
             energy--;
             moved = true;
             turnCount = 0;
-            lastMove = cmd;
 
             if (!loopDone) {
                 if (loopStage === 0 && cmd === "F") loopStage = 1;
@@ -132,6 +134,8 @@ function validateCommands(cmds) {
         else {
             return { valid: false, message: `Invalid command: ${cmd}` };
         }
+
+        previousCommand = cmd;
     }
 
     return { valid: false, message: "Missing STOP" };
@@ -149,8 +153,31 @@ function createGrid() {
             if (robot.x === col && robot.y === row) {
                 const robotIcon = document.createElement("div");
                 robotIcon.className = "robot-icon";
-                robotIcon.innerText = "🤖";
+                const robotImage = document.createElement("img");
+                robotImage.className = "robot-image";
+                robotImage.src = "assets/robot.png";
+                robotImage.alt = "Robot marker";
+                robotIcon.appendChild(robotImage);
+
+                if (robot.carrying) {
+                    const carriedObject = document.createElement("div");
+                    carriedObject.className = "carried-object";
+
+                    const carriedImage = document.createElement("img");
+                    carriedImage.className = "object-image";
+                    carriedImage.src = "assets/ball.png";
+                    carriedImage.alt = "Carried object";
+                    carriedObject.appendChild(carriedImage);
+                    robotIcon.appendChild(carriedObject);
+                }
+
                 cell.appendChild(robotIcon);
+
+                // Visual direction indicator (a dot near the edge the robot faces)
+                const faceDot = document.createElement("div");
+                faceDot.className = `face-dot face-${robot.direction.toLowerCase()}`;
+                faceDot.innerText = ".";
+                cell.appendChild(faceDot);
             } else {
                 cell.innerText = `(${col},${row})`;
             }
@@ -166,6 +193,22 @@ function addCommand(command) {
     addLog(`Command added: ${command}`, "normal");
 }
 
+function removeCommand(index) {
+    // If the simulation is running, stop it and reset the robot safely
+    if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        resetRobot();
+        addLog("Simulation stopped due to queue modification.", "error");
+    }
+
+    const removedCmd = commands[index];
+    commands.splice(index, 1); // Remove the command at the specified index
+    updateCommandQueue();       // Refresh the queue UI
+    addLog(`Removed command: ${removedCmd}`, "normal");
+}
+
+
 function updateCommandQueue() {
     const queue = document.getElementById("commandQueue");
     const stepCount = document.getElementById("stepCount");
@@ -178,10 +221,41 @@ function updateCommandQueue() {
         return;
     }
 
+    // commands.forEach((cmd, index) => {
+    //     const chip = document.createElement("div");
+    //     chip.className = "command-chip";
+    //     chip.innerText = cmd;
+    //     queue.appendChild(chip);
+
+    //     if (index < commands.length - 1) {
+    //         const arrow = document.createElement("span");
+    //         arrow.className = "arrow";
+    //         arrow.innerText = "→";
+    //         queue.appendChild(arrow);
+    //     }
+    // });
+
     commands.forEach((cmd, index) => {
         const chip = document.createElement("div");
         chip.className = "command-chip";
-        chip.innerText = cmd;
+
+        // 1. Text label for the command
+        const label = document.createElement("span");
+        label.innerText = cmd;
+        chip.appendChild(label);
+
+        // 2. Delete button (x)
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerHTML = "×";
+        // Styled with matching slate colors, changing to red/error color on hover
+        deleteBtn.className = "text-on-surface-variant hover:text-error transition-colors focus:outline-none font-bold text-sm leading-none cursor-pointer";
+        deleteBtn.title = "Delete this command";
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            removeCommand(index);
+        };
+        chip.appendChild(deleteBtn);
+
         queue.appendChild(chip);
 
         if (index < commands.length - 1) {
@@ -191,6 +265,7 @@ function updateCommandQueue() {
             queue.appendChild(arrow);
         }
     });
+
 }
 
 function runCommands() {
@@ -213,12 +288,17 @@ function runCommands() {
     }
 
     addLog("Valid sequence: " + result.message, "success");
+    if (simulationInterval) {
+        clearInterval(simulationInterval);
+    }
     simulateCommands(commands);
 }
 
 function simulateCommands(commandList) {
     if (robot.energy <= 0) {
-        clearInterval(interval);
+        // clearInterval(interval);
+        clearInterval(simulationInterval);
+        simulationInterval = null;
         addLog("Simulation stopped: No energy", "error");
         robot.state = "Rejected";
         updateStatus();
@@ -228,9 +308,11 @@ function simulateCommands(commandList) {
 
     let index = 0;
 
-    const interval = setInterval(() => {
+    // const interval = setInterval(() => { added
+    simulationInterval = setInterval(() => {
         if (index >= commandList.length) {
-            clearInterval(interval);
+            clearInterval(simulationInterval);
+            simulationInterval = null;
             robot.state = "Finished";
             updateStatus();
             addLog("Simulation finished.", "success");
@@ -243,7 +325,8 @@ function simulateCommands(commandList) {
             (cmd === "FORWARD" || cmd === "BACKWARD") &&
             robot.energy <= 0
         ) {
-            clearInterval(interval);
+            clearInterval(simulationInterval);
+            simulationInterval = null;
             addLog("Simulation stopped: No energy", "error");
             robot.state = "Rejected";
             updateStatus();
@@ -262,9 +345,10 @@ function simulateCommands(commandList) {
 }
 
 function resetRobot() {
-    robot.x = 0;
-    robot.y = 0;
-    robot.direction = "North";
+    // robot.x = 0;
+    // robot.y = 0;
+    // robot.direction = "North";
+
     robot.energy = 3;
     robot.carrying = false;
     robot.state = "Running";
@@ -291,10 +375,18 @@ function moveForward() {
         return;
     }
 
-    if (robot.direction === "North" && robot.y < 7) robot.y++;
-    else if (robot.direction === "South" && robot.y > 0) robot.y--;
-    else if (robot.direction === "East" && robot.x < 7) robot.x++;
-    else if (robot.direction === "West" && robot.x > 0) robot.x--;
+    // if (robot.direction === "North" && robot.y < 7) robot.y++;
+    // else if (robot.direction === "South" && robot.y > 0) robot.y--;
+    // else if (robot.direction === "East" && robot.x < 7) robot.x++;
+    // else if (robot.direction === "West" && robot.x > 0) robot.x--;
+    if (robot.direction === "North")
+        robot.y = (robot.y + 1) % 8;
+    else if (robot.direction === "South")
+        robot.y = (robot.y - 1 + 8) % 8;
+    else if (robot.direction === "East")
+        robot.x = (robot.x + 1) % 8;
+    else if (robot.direction === "West")
+        robot.x = (robot.x - 1 + 8) % 8;
 
     robot.energy--;
 }
@@ -305,10 +397,19 @@ function moveBackward() {
         return;
     }
 
-    if (robot.direction === "North" && robot.y > 0) robot.y--;
-    else if (robot.direction === "South" && robot.y < 7) robot.y++;
-    else if (robot.direction === "East" && robot.x > 0) robot.x--;
-    else if (robot.direction === "West" && robot.x < 7) robot.x++;
+    // if (robot.direction === "North" && robot.y > 0) robot.y--;
+    // else if (robot.direction === "South" && robot.y < 7) robot.y++;
+    // else if (robot.direction === "East" && robot.x > 0) robot.x--;
+    // else if (robot.direction === "West" && robot.x < 7) robot.x++;
+
+    if (robot.direction === "North")
+        robot.y = (robot.y - 1 + 8) % 8;
+    else if (robot.direction === "South")
+        robot.y = (robot.y + 1) % 8;
+    else if (robot.direction === "East")
+        robot.x = (robot.x - 1 + 8) % 8;
+    else if (robot.direction === "West")
+        robot.x = (robot.x + 1) % 8;
 
     robot.energy--;
 }
@@ -335,29 +436,32 @@ function turnRight() {
     robot.direction = right[robot.direction];
 }
 
+// function clearCommands() {
+//     commands = [];
+//     updateCommandQueue();
+//     addLog("Command queue cleared.", "success");
+// }
 function clearCommands() {
     commands = [];
+    clearInterval(simulationInterval);
+
+    resetRobot();
     updateCommandQueue();
     addLog("Command queue cleared.", "success");
 }
 
-function emergencyStop() {
-    commands = [];
-    robot.state = "Emergency Stop";
-    updateCommandQueue();
-    updateStatus();
-    addLog("EMERGENCY STOP activated.", "error");
-}
-
 function updateStatus() {
-    document.getElementById("position").innerText = `(${robot.x},${robot.y})`;
-    document.getElementById("direction").innerText = robot.direction;
-    document.getElementById("energyText").innerText = `${robot.energy}/3`;
-    document.getElementById("carrying").innerText = robot.carrying ? "Yes" : "No";
-    document.getElementById("state").innerText = robot.state;
+    // document.getElementById("position").innerText = `(${robot.x},${robot.y})`;
+    // document.getElementById("direction").innerText = robot.direction;
+    // document.getElementById("energyText").innerText = `${robot.energy}/3`;
+    // document.getElementById("carrying").innerText = robot.carrying ? "Yes" : "No";
+    // document.getElementById("state").innerText = robot.state;
+    const positionEl = document.getElementById("position");
+    if (positionEl) positionEl.innerText = `(${robot.x},${robot.y})`;
 
-    const energyPercent = (robot.energy / 3) * 100;
-    document.getElementById("energyBar").style.width = `${energyPercent}%`;
+    // const energyPercent = (robot.energy / 3) * 100;
+    // document.getElementById("energyBar").style.width = `${energyPercent}%`;
+
 }
 
 function addLog(message, type = "normal") {
